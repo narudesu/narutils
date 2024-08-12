@@ -38,3 +38,9 @@ pub struct AppConfig {
     pub jira_username: String,
     pub jira_password: String,
 }
+
+impl AppConfig {
+    pub fn format_jira_issue_url(&self, issue_key: &str) -> String {
+        [&self.jira_host, "browse", issue_key].join("/")
+    }
+}

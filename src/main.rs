@@ -22,6 +22,7 @@ fn main() {
             run_command_activate_issue(args).expect("command failed")
         }
         AppCliSubcommand::Config => run_command_config().expect("command failed"),
+        AppCliSubcommand::GetActiveIssue => run_command_get_active_issue().expect("command failed"),
     };
 }
 
@@ -35,6 +36,7 @@ struct AppCliOptions {
 enum AppCliSubcommand {
     FormatCommit(FormatCommitArgs),
     StartIssue(StartIssueArgs),
+    GetActiveIssue,
     Config,
 }
 
@@ -75,6 +77,25 @@ fn run_command_config() -> Result<()> {
     Ok(())
 }
 
+fn run_command_get_active_issue() -> Result<()> {
+    let issue_key = load_active_issue_config().map(|x| x.active_issue_key).ok();
+
+    match issue_key {
+        None => {
+            println!("No active issue selected.")
+        }
+        Some(issue_key) => {
+            let issue = get_jira_issue(&issue_key)?;
+            let summary = &issue.fields.summary;
+            let issue_url = load_app_config()?.format_jira_issue_url(&issue_key);
+
+            println!("issue_key: {issue_key}\nsummary: {summary}\nurl: {issue_url}")
+        }
+    }
+
+    Ok(())
+}
+
 fn run_command_activate_issue(args: StartIssueArgs) -> std::io::Result<()> {
     let issue_key = parse_issue_key(&args.jira_issue);
 
@@ -95,18 +116,18 @@ fn run_command_activate_issue(args: StartIssueArgs) -> std::io::Result<()> {
     Ok(())
 }
 
+fn load_active_issue_config() -> Result<ActiveIssueConfig> {
+    let file = File::open(".narutils/active_issue.json")?;
+    let reader = BufReader::new(file);
+    let config: ActiveIssueConfig = serde_json::from_reader(reader)?;
+
+    Ok(config)
+}
+
 fn run_command_format_commit(args: FormatCommitArgs) -> Result<()> {
     let issue_key = match &args.jira_issue {
         Some(jira_issue) => parse_issue_key(jira_issue).to_owned(),
-        None => {
-            let file =
-                File::open(".narutils/active_issue.json").expect("failed to open config file");
-            let reader = BufReader::new(file);
-            let config: ActiveIssueConfig = serde_json::from_reader(reader)
-                .expect("failed to read active issue key from config file");
-
-            config.active_issue_key
-        }
+        None => load_active_issue_config()?.active_issue_key,
     };
     let issue = get_jira_issue(&issue_key)?;
 
