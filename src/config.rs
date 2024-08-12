@@ -1,7 +1,8 @@
-use std::{fs::File, io::BufReader, path::Path};
-
+use crate::tempo::TempoConfiguration;
 use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
+use std::{fs::File, io::BufReader, path::Path};
+use thiserror::Error;
 
 pub fn load_app_config() -> Result<AppConfig> {
     let path = Path::new(".narutils/config.json");
@@ -18,25 +19,18 @@ pub fn load_app_config() -> Result<AppConfig> {
     Ok(config)
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AppConfigError {
+    #[error("app config file could not be found")]
     FileNotFound,
 }
-
-impl std::fmt::Display for AppConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::FileNotFound => write!(f, "File not found."),
-        }
-    }
-}
-impl std::error::Error for AppConfigError {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AppConfig {
     pub jira_host: String,
     pub jira_username: String,
     pub jira_password: String,
+    pub tempo: Option<TempoConfiguration>,
 }
 
 impl AppConfig {

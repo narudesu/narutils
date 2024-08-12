@@ -33,29 +33,41 @@ pub fn load_api_config() -> Result<JiraApiConfiguration> {
     })
 }
 
+pub fn get_jira_account_id() -> Result<String> {
+    let jira_config = load_api_config()?;
+    let myself: MyselfResponse = build_agent()?
+        .get(&(jira_config.api_url.to_owned() + "/myself"))
+        .call()?
+        .into_json()?;
+
+    Ok(myself.account_id)
+}
+
 pub fn get_jira_issue(issue_key: &str) -> Result<IssueResponse> {
     let jira_config = load_api_config()?;
     let issue_path = [&jira_config.api_url, "issue", issue_key].join("/");
 
-    let agent = build_agent();
+    let agent = build_agent()?;
 
     let issue: IssueResponse = agent.get(&issue_path).call().unwrap().into_json().unwrap();
 
     Ok(issue)
 }
 
-#[allow(clippy::result_large_err)]
-fn jira_middleware(req: Request, next: MiddlewareNext) -> Result<Response, ureq::Error> {
-    let jira_config = load_api_config().unwrap();
+fn build_agent() -> Result<ureq::Agent> {
+    let config = load_api_config()?;
+    let auth_header = config.auth_header.clone();
 
-    next.handle(req.set("Authorization", &jira_config.auth_header))
+    Ok(ureq::builder()
+        .middleware(
+            move |req: Request, next: MiddlewareNext| -> Result<Response, ureq::Error> {
+                next.handle(req.set("Authorization", &auth_header))
+            },
+        )
+        .build())
 }
 
-fn build_agent() -> ureq::Agent {
-    ureq::builder().middleware(jira_middleware).build()
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JiraApiConfiguration {
     pub api_url: String,
     pub auth_header: String,
@@ -63,7 +75,14 @@ pub struct JiraApiConfiguration {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct IssueResponse {
+    pub id: String,
     pub fields: IssueFieldsResponse,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MyselfResponse {
+    pub account_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
