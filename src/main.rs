@@ -182,6 +182,8 @@ fn run_command_track_time() -> Result<()> {
         .ok()
         .context("no active issue")?;
 
+    run_command_print_tempo_worklog()?;
+
     let minutes = Listbox::new([15, 30, 45, 60])
         .title("How many minutes do you want to track?")
         .listbox_lines(5)
