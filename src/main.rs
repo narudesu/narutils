@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 use config::{load_app_config, AppConfigError};
 use jira::get_jira_issue;
 use promkit::preset::listbox::Listbox;
@@ -30,6 +30,9 @@ fn main() {
             run_command_print_tempo_worklog().expect("command failed")
         }
         AppCliSubcommand::TrackTime => run_command_track_time().expect("command failed"),
+        AppCliSubcommand::Completions { shell } => {
+            shell.generate(&mut AppCliOptions::command(), &mut std::io::stdout())
+        }
     };
 }
 
@@ -47,6 +50,10 @@ enum AppCliSubcommand {
     PrintTempoWorklog,
     TrackTime,
     Config,
+    Completions {
+        #[arg(value_enum)]
+        shell: clap_complete_command::Shell,
+    },
 }
 
 #[derive(Args, Debug)]
